@@ -1,0 +1,6 @@
+{
+    "API_URL": "http://localhost:8080/generate",
+    "DB_NAME": "yui_db",
+    "DB_USER": "postgres",
+    "DB_PASS": "postgres"
+}

@@ -1,0 +1,78 @@
+package helpers // Define el paquete "helpers"
+
+import (
+	"fmt"
+	"reflect"
+	"time"
+)
+
+// Función para imprimir un mensaje
+func PrintHelperMessage() {
+	fmt.Println("Hola desde helper.go dentro del paquete helpers!")
+}
+
+// Funcion random de ejemplo para ejecutar en el Spawner sin argumentos extra
+// Ejecucion: helpers.SpawnTask("RandomTask", 500, 5000)
+func RandomTask(id int, data chan int) {
+	for taskId := range data {
+		time.Sleep(2 * time.Second)
+		fmt.Printf("Worker %d executed task %d\n", id, taskId)
+	}
+}
+
+// Funcion random de ejemplo con argumentos extra para ejecutar en el Spawner
+// Ejecucion: helpers.SpawnTask("RandomTaskWithParameters", 500, 5000, "Peluca", 55)
+func RandomTaskWithParameters(id int, data chan int, nombre string, edad int) {
+	for taskId := range data {
+		time.Sleep(2 * time.Second)
+		fmt.Printf("Worker %d executed task %d, su nombre es %s y su edad es %d\n", id, taskId, nombre, edad)
+	}
+}
+
+// Definir aqui las funciones que pueden ejecutarse como tarea
+var Funciones = map[string]interface{}{
+	"RandomTask":               RandomTask,
+	"RandomTaskWithParameters": RandomTaskWithParameters,
+}
+
+func SpawnTask(taskFunction string, workersCount int, executionCount int, args ...interface{}) {
+	// Buscar la función por su nombre en el mapa
+
+	Funciones[taskFunction] = taskFunction
+
+	funcion, ok := Funciones[taskFunction]
+	if !ok {
+		fmt.Println("La función no existe")
+		return
+	}
+
+	// Preparar los argumentos para llamar a la función
+	var reflectArgs []reflect.Value
+	// Agregar los argumentos pasados a SpawnTask
+	for _, arg := range args {
+		reflectArgs = append(reflectArgs, reflect.ValueOf(arg))
+	}
+
+	// Creamos un canal
+	channel := make(chan int)
+
+	// Creamos N Workers para ejecutar tareas
+	for i := 0; i < workersCount; i++ {
+		// Capturamos i en una variable local para que cada goroutine tenga su propio valor
+		workerID := i
+		go func(id int) {
+			for range channel {
+				// Agregamos id y channel a los argumentos antes de llamar a la función
+				funcArgs := append([]reflect.Value{reflect.ValueOf(id), reflect.ValueOf(channel)}, reflectArgs...)
+				// Llamar a la función con los argumentos apropiados
+				reflect.ValueOf(funcion).Call(funcArgs)
+			}
+		}(workerID)
+	}
+
+	// Creamos N Tareas
+	for i := 0; i < executionCount; i++ {
+		channel <- i
+	}
+	close(channel)
+}
